@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Timeout: 30
+Resources:
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/AWSXrayFullAccess'
+
+  BaseConcurrencyTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions
+      Handler: concurrencytest.lambda_handler
+      Description: 'Sample Lambda function to demonstate concurency with cold start delay'
+      Environment:
+        Variables:
+          COLD_START_DELAY: '5'
+      Tags: #AWS::Lambda::Function expects Tags to be a list of Tag resource
+        ConcurrencyTest: 'Yes'
+        Lambda: 'Yes'
+        WithProvisioning: 'No'
+      Runtime: python3.6 #update from 3.8 -> 3.7 to overcome the error ' ZipFile can only be used when  Runtime is set to either of nodejs8.10, nodejs10.x, nodejs12.x, python2.7, python3.6, python3.7.
+      MemorySize: 128
+      Tracing: Active
+      ReservedConcurrentExecutions: 300
+      Role: !GetAtt #AWS::Lambda::Function expected Role to be defined
+        - LambdaExecutionRole
+        - Arn
+      Timeout: 25 #As per the code, Lambda function will delay request processing for COLD_START_DELAY seconds so set timeout to 25 seconds to allow lambda function to finish
+
+  BaseConcurrencyTestFunctionVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref BaseConcurrencyTestFunction
+      Description: v1
+
+  BaseConcurrencyTestFunctionAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref BaseConcurrencyTestFunction
+      FunctionVersion: !GetAtt BaseConcurrencyTestFunctionVersion.Version
+      Name: BaseConcurrencyPROD
+
+  ProvisionedConcurrencyTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions
+      Handler: concurrencytest.lambda_handler
+      Description: 'Sample Lambda function to demonstate concurency with cold start delay and provisioned concurrency'
+      Environment:
+        Variables:
+          COLD_START_DELAY: '5'
+      Tags: #AWS::Lambda::Function expects Tags to be a list of Tag resource
+        ConcurrencyTest: 'Yes'
+        Lambda: 'Yes'
+        WithProvisioning: 'Yes'
+      Runtime: python3.6 #update from 3.8 -> 3.7 to overcome the error ' ZipFile can only be used when  Runtime is set to either of nodejs8.10, nodejs10.x, nodejs12.x, python2.7, python3.6, python3.7.
+      MemorySize: 128
+      Tracing: Active
+      ReservedConcurrentExecutions: 300
+      Role: !GetAtt #AWS::Lambda::Function expected Role to be defined
+        - LambdaExecutionRole
+        - Arn
+      Timeout: 25 #As per the code, Lambda function will delay request processing for COLD_START_DELAY seconds so set timeout to 25 seconds to allow lambda function to finish
+
+  ProvisionedConcurrencyTestFunctionVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref ProvisionedConcurrencyTestFunction
+      Description: v1
+
+  ProvisionedConcurrencyTestFunctionAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref ProvisionedConcurrencyTestFunction
+      FunctionVersion: !GetAtt ProvisionedConcurrencyTestFunctionVersion.Version
+      Name: ProvisionedConcurrencyPROD
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: 150  #update from 500 -> 1 for quick deployment
+
+
+  BaseConcurrencyTestStateMachine:
+    Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Properties:
+      DefinitionUri: statemachine/concurrency_test_state_machine.asl.json
+      DefinitionSubstitutions:
+        ConcurrencyTestFunctionArn: !GetAtt BaseConcurrencyTestFunction.Arn
+        ConcurrencyTestFunctionVersion: !GetAtt BaseConcurrencyTestFunctionVersion.Version
+      Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BaseConcurrencyTestFunction
+
+
+  ProvisionedConcurrencyTestStateMachine:
+    Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Properties:
+      DefinitionUri: statemachine/concurrency_test_state_machine.asl.json
+      DefinitionSubstitutions:
+        ConcurrencyTestFunctionArn: !GetAtt ProvisionedConcurrencyTestFunction.Arn
+        ConcurrencyTestFunctionVersion: !GetAtt ProvisionedConcurrencyTestFunctionVersion.Version
+      Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ProvisionedConcurrencyTestFunction
+
+
+Outputs:
+  BaseConcurrencyTestStateMachine:
+    Description: "Base Concurrency Test State machine ARN"
+    Value: !Ref BaseConcurrencyTestStateMachine
+  ProvisionedConcurrencyTestStateMachine:
+    Description: "Provisioned Concurrency Test State machine ARN"
+    Value: !GetAtt ProvisionedConcurrencyTestStateMachine.Arn

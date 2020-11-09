@@ -1,0 +1,37 @@
+{
+  "Comment": "An example of the Amazon States Language using a Map Iterator to execute multiple branches at the same time.",
+  "StartAt": "Test Lambda Concurrency",
+  "States": {
+    "Test Lambda Concurrency": {
+      "Type": "Map",
+      "Next": "Final State",
+      "InputPath": "$.input",
+      "ItemsPath": "$.entries",
+      
+      "Iterator": {
+        "StartAt": "Execute Lambda Function",
+        "States": {
+          "Execute Lambda Function": {
+            "Type": "Task",
+            "Resource": "${ConcurrencyTestFunctionArn}:${ConcurrencyTestFunctionVersion}",
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "TimeOut"
+                ],
+                "IntervalSeconds": 1,
+                "BackoffRate": 2,
+                "MaxAttempts": 3
+              }
+            ],
+            "End": true
+          }
+        }
+      }
+    },
+    "Final State": {
+      "Type": "Pass",
+      "End": true
+    }
+  }
+}
