@@ -23,6 +23,21 @@ The sample provided is aimed at demonstrating the benefit of [provisioned concur
 * All of these are specified in a single SAM Template, [template.yaml](template.yaml).
 * Use the sample test payload [sample-test-input.json](sample-test-input.json) for testing the Step functions
 
+File structure:
+```
+    .
+    ├── functions
+    │   ├── concurrencytest.py
+    │   └── requirements.txt
+    ├── README.md
+    ├── sam-deploy.sh
+    ├── sam-package.sh
+    ├── sample-test-input.json
+    ├── statemachine
+    │   └── concurrency_test_state_machine.asl.json
+    └── template.yaml
+```
+
 ### Steps:
 * Setup latest SAM tooling in local environment (or use AWS Cloud9 env). Refer to [SAM install documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
 * Download the template and files from this Repo into a new folder
