@@ -3,7 +3,7 @@
 The sample provided is aimed at demonstrating the benefit of [provisioned concurrency](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html#configuration-concurrency-provisioned) vs just using reserved concurrency in Lambda function. A [SAM (Serverless Application Model)](https://github.com/aws/serverless-application-model) template is used to quickly build and deploy a set of Lambda functions and associated Step functions that can be executed to demonstrate reserved concurrency vs provisioned concurrency. For more info on Provisioned concurrency, please refer to this [blog post](https://aws.amazon.com/blogs/aws/new-provisioned-concurrency-for-lambda-functions/)
 
 ### Components:
-* Sample Lambda function `concurrencytest.py` under functions folder (in Python 3) that  mimics cold start using an environment variable to control sleep duration on initialization.
+* Sample Lambda function [concurrencytest.py](functions/concurrencytest.py) under functions folder (in Python 3) that  mimics cold start using an environment variable to control sleep duration on initialization.
   * Cold start delay set to 5 seconds and normal function execution is set to 3 seconds.
 * Two Lambda functions that refer to previously mentioned python code to expose with reserved vs provisioned concurrency
 	* The total reserved concurrency should be greater than provisioned concurrency while ensuring the remaining unreserved concurrency is minimum 100. So, use something like 200 for reserved concurrency and 150 for provisioned concurrency so one does not hit limits (default total concurrency is 1000 for Lambda functions).
@@ -17,10 +17,11 @@ The sample provided is aimed at demonstrating the benefit of [provisioned concur
   ProvisionedConcurrencyConfig:
     ProvisionedConcurrentExecutions: 150  #Lower it from 150 -> 1 for quick deployment
   ```
-* Step function template `concurency_test_state_machine.asl.json` under statemachine folder, that uses iterator function to go through a list of objects and invoke target lambda function in parallel for each payload item.
+* Step function template [concurrency_test_state_machine.asl.json](statemachine/concurrency_test_state_machine.asl.json) under statemachine folder, that uses iterator function to go through a list of objects and invoke target lambda function in parallel for each payload item.
 	* There would be two separate step functions one to invoke reserved and other to invoke provisioned concurrency.
   * The step function acts as a load generator to test multiple parallel invocations of the same lambda function to test concurrency.
-* All of these are specified in a single SAM Template, `template.yaml`.
+* All of these are specified in a single SAM Template, [template.yaml](template.yaml).
+* Use the sample test payload [sample-test-input.json](sample-test-input.json) for testing the Step functions
 
 ### Steps:
 * Setup latest SAM tooling in local environment (or use AWS Cloud9 env). Refer to [SAM install documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
